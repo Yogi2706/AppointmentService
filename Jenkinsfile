@@ -19,7 +19,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building Docker image'
-                sh "docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} ."
+                sh "sudo docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} ."
             }
         }
 
