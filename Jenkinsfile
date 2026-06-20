@@ -2,60 +2,50 @@ pipeline {
     agent any
 
     environment {
-        CI = 'true'
-        NODE_ENV = 'test'
-    }
-
-    tools {
-        nodejs 'Node18'
+        AWS_REGION = 'ap-south-1'
+        ECR_REGISTRY = 'YOUR_ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com'
+        ECR_REPOSITORY = 'appointment-service'
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out source code'
+                echo 'Checking out repository'
                 checkout scm
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build') {
             steps {
-                echo 'Installing npm dependencies'
-                sh 'npm install'
+                echo 'Building Docker image'
+                sh "docker build -t ${ECR_REPOSITORY}:${IMAGE_TAG} ."
             }
         }
 
-        stage('Lint Code') {
+        stage('Push') {
             steps {
-                echo 'Checking code quality'
-                sh 'npm run lint'
-            }
-        }
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding',
+                     credentialsId: 'aws-ecr-credentials',
+                     accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
+                ]) {
+                    echo 'Logging into ECR'
+                    sh "aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${AWS_REGION} || aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}"
+                    sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
 
-        stage('Run Tests') {
-            steps {
-                echo 'Running unit tests'
-                sh 'npm test'
-            }
-        }
-
-        stage('Archive Coverage') {
-            steps {
-                echo 'Archiving test coverage output'
-                archiveArtifacts artifacts: 'coverage/**', allowEmptyArchive: true
+                    echo 'Tagging and pushing image'
+                    sh "docker tag ${ECR_REPOSITORY}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                    sh "docker push ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+                }
             }
         }
     }
 
     post {
         always {
-            echo 'Pipeline finished'
-        }
-        success {
-            echo 'AppointmentService pipeline succeeded'
-        }
-        failure {
-            echo 'AppointmentService pipeline failed'
+            echo 'Pipeline completed'
         }
     }
 }
