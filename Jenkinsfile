@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         AWS_REGION = 'ap-south-1'
-        ECR_REGISTRY = 'YOUR_ACCOUNT_ID.sudo systemctl status jenkinsdkr.ecr.ap-south-1.amazonaws.com'
+        ECR_REGISTRY = '908228722199.dkr.ecr.ap-south-1.amazonaws.com'
         ECR_REPOSITORY = 'appointment-service'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         ECR_IMAGE = "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
@@ -42,6 +42,7 @@ pipeline {
                     sh 'aws sts get-caller-identity'
 
                     echo 'Logging into ECR'
+                    sh 'echo ECR_REGISTRY=$ECR_REGISTRY'
                     sh "aws ecr describe-repositories --repository-names ${ECR_REPOSITORY} --region ${AWS_REGION} || aws ecr create-repository --repository-name ${ECR_REPOSITORY} --region ${AWS_REGION}"
                     sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
 
